@@ -1,24 +1,22 @@
-import { useId, useState, useEffect, memo, useCallback } from 'react';
+import { useId, useState, useEffect, memo } from 'react';
 import './App.css';
 
-const apiKey = process.env.REACT_APP_BING_API_KEY;
-const apiEndpoint = process.env.REACT_APP_BING_API_ENDPOINT;
-
 async function fetchSuggestions(text) {
-  if (text === "") return [];
+  if (text.trim() === "") return null;
 
   const params = new URLSearchParams({
-    mkt: 'en-us',
-    mode: 'proof',
-    text: text
+    text: text,
+    language: import.meta.env.VITE_LANGUAGE
   });
-  const response = await fetch(apiEndpoint + '?' + params, {
-    method: 'POST', 
+
+  const response = await fetch('https://api.languagetool.org/v2/check', {
+    method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Ocp-Apim-Subscription-Key': apiKey
-    }
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params
   });
+
   const json = await response.json();
   return json;
 }
@@ -44,22 +42,24 @@ function SpellcheckInput({ setCurrentText }) {
 }
 
 const SpellcheckOutput = memo(({ checkResult }) => {
-  return (checkResult && checkResult.flaggedTokens && checkResult.flaggedTokens.length > 0 ? <>
+  return (checkResult && checkResult.matches && checkResult.matches.length > 0 ? <>
     <table className='table'>
       <thead>
         <tr>
-          <th scope="col">Possible Error</th>
+          <th scope="col">Issue</th>
           <th scope="col">Suggestions</th>
         </tr>
       </thead>
       <tbody>
-        {checkResult.flaggedTokens.map((flaggedToken, i) => <tr key={i}>
-          <th scope='row'>{flaggedToken.token}</th>
-          <td>{flaggedToken.suggestions.map(s => s.suggestion).join(', ')}</td>
-        </tr>)}
+        {checkResult.matches.map((match, i) => (
+          <tr key={i}>
+            <th scope='row'>{match.context.text.substring(match.context.offset, match.context.offset + match.length)}</th>
+            <td>{match.replacements.map(r => r.value).join(', ')}</td>
+          </tr>
+        ))}
       </tbody>
     </table>
-  </> : null)
+  </> : null);
 });
 
 function SpellChecker() {
